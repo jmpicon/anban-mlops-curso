@@ -48,11 +48,16 @@ Write-Host "    [OK] limpio" -ForegroundColor Green
 Pausa
 
 # Paso 1 - dependencias
-Paso "Paso 1 - Comprobar DVC y pandas instalados"
+Paso "Paso 1 - Comprobar DVC y librerias Python instaladas"
+& python -c "import dvc, pandas, pyarrow, sklearn, yaml" 2>$null
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "    Faltan dependencias. Las instalo:" -ForegroundColor Yellow
+  pip install --quiet "dvc[s3]==3.55.2" pandas pyarrow scikit-learn pyyaml
+}
 $dvc = Get-Command dvc -ErrorAction SilentlyContinue
 if (-not $dvc) {
-  Write-Host "    DVC no esta instalado. Lo instalo:" -ForegroundColor Yellow
-  pip install --quiet "dvc[s3]==3.55.2" pandas pyarrow scikit-learn pyyaml
+  Write-Host "    [FALLO] dvc no esta en el PATH" -ForegroundColor Red
+  exit 1
 }
 Write-Host "    DVC: $(dvc --version)"
 Write-Host "    [OK]" -ForegroundColor Green

@@ -94,16 +94,26 @@ pausa
 # ============================================================
 # Paso 1 — Comprobar dependencias Python
 # ============================================================
-paso "Paso 1 · Comprobar que DVC y pandas están instalados"
-explica "Los necesitamos para trackear datos y procesarlos."
+paso "Paso 1 · Comprobar que DVC y las librerías Python están instaladas"
+explica "Las necesitamos para trackear datos y procesarlos."
 
-if ! command -v dvc >/dev/null 2>&1; then
+# Comprueba todas las librerías a la vez (DVC + pandas + pyarrow + sklearn + pyyaml).
+# Si falta cualquiera, instala el lote entero.
+if ! python -c "import dvc, pandas, pyarrow, sklearn, yaml" >/dev/null 2>&1; then
   echo ""
-  echo "    ${C_YELLOW}DVC no está instalado. Lo instalo ahora.${C_RESET}"
+  echo "    ${C_YELLOW}Faltan dependencias. Las instalo ahora.${C_RESET}"
   echo ""
   pip install --quiet "dvc[s3]==3.55.2" pandas pyarrow scikit-learn pyyaml \
     || { echo "    ${C_RED}✗ pip install falló${C_RESET}"; exit 1; }
 fi
+
+# Verifica que el ejecutable dvc esté en el PATH
+if ! command -v dvc >/dev/null 2>&1; then
+  echo "    ${C_RED}✗ dvc instalado pero no está en el PATH${C_RESET}"
+  echo "    Activa tu virtualenv o reinstala: pip install \"dvc[s3]==3.55.2\""
+  exit 1
+fi
+
 echo "    DVC: $(dvc --version)"
 echo "    ${C_GREEN}✓ todo listo${C_RESET}"
 pausa
