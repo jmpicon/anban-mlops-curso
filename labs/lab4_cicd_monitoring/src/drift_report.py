@@ -59,7 +59,9 @@ th{{background:#0B1F3A;color:#fff}}</style>
 <p>Umbral típico: < 0.1 ok · 0.1-0.25 watch · > 0.25 drift</p>
 <table><tr><th>feature</th><th>PSI</th><th>status</th></tr>{rows}</table>
 """
-    output.write_text(html)
+    # encoding utf-8 explicito: en Windows por defecto usa cp1252 y
+    # peta con caracteres unicode (el simbolo de advertencia, etc.).
+    output.write_text(html, encoding="utf-8")
 
 
 def main() -> None:
@@ -83,14 +85,20 @@ def main() -> None:
         report.run(reference_data=ref, current_data=cur)
         report.save_html(str(out))
         as_json = report.as_dict()
-        out.with_suffix(".json").write_text(json.dumps(as_json, indent=2, default=str))
+        out.with_suffix(".json").write_text(
+            json.dumps(as_json, indent=2, default=str),
+            encoding="utf-8",
+        )
         print(f"OK · evidently report -> {out}")
     except Exception as exc:
         print(f"evidently no disponible ({exc}); usando fallback PSI")
         common = [c for c in ref.columns if c in cur.columns]
         scores = {c: psi(ref[c], cur[c]) for c in common}
         fallback_html(scores, out)
-        out.with_suffix(".json").write_text(json.dumps(scores, indent=2))
+        out.with_suffix(".json").write_text(
+            json.dumps(scores, indent=2),
+            encoding="utf-8",
+        )
         print(f"OK · fallback report -> {out}")
 
 
