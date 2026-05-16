@@ -6,7 +6,17 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+import warnings
 from pathlib import Path
+
+# Silenciamos warnings cosméticos de MLflow que asustan al alumno
+# (todos son avisos informativos, no errores):
+#   - "Inferred schema contains integer column(s)" — solo aplica si los
+#     datos de inference tienen NaN, no es nuestro caso.
+#   - "n_jobs has no effect since 1.8" — el modelo logreg lo pasa por
+#     compatibilidad pero sklearn lo deprecia.
+warnings.filterwarnings("ignore", message=".*Inferred schema contains integer column.*")
+warnings.filterwarnings("ignore", message=".*n_jobs.*has no effect.*")
 
 import mlflow
 import mlflow.sklearn
@@ -34,9 +44,13 @@ EXPERIMENT = "income-classifier"
 
 
 def git_commit() -> str:
+    # Silenciamos stderr para no mostrar "fatal: not a git repository"
+    # cuando el alumno ejecuta el lab sin haber hecho git init.
     try:
         return subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"], text=True
+            ["git", "rev-parse", "--short", "HEAD"],
+            text=True,
+            stderr=subprocess.DEVNULL,
         ).strip()
     except Exception:
         return "unknown"
