@@ -76,13 +76,11 @@ if [ -d ".dvc" ] || [ -f "dvc.lock" ] || [ -d "data" ] || [ -d ".git" ]; then
   echo ""
   echo "    Encontré restos de una ejecución anterior. Los borro:"
   rm -rf .dvc .dvcignore dvc.lock data/raw data/processed 2>/dev/null || true
-  # mantengo dvc.yaml y params.yaml porque son ficheros de partida del lab
-  if [ -d ".git" ] && [ -f ".git/config" ]; then
-    # solo borro el .git si lo creó este propio lab (no es el del repo padre)
-    if grep -q "lab1_dataops" .git/config 2>/dev/null || true; then
-      rm -rf .git
-    fi
-  fi
+  rm -rf dvc.yaml 2>/dev/null || true
+  # Borramos también .git si está DENTRO de lab1_dataops, para que el
+  # lab arranque siempre desde el mismo punto. (No afecta al .git del
+  # repo padre si lo hubiera.)
+  rm -rf .git 2>/dev/null || true
   echo "    ${C_GREEN}✓ limpio${C_RESET}"
 else
   echo "    Nada que limpiar."
@@ -138,7 +136,17 @@ pausa
 # ============================================================
 paso "Paso 3 · Inicializar DVC"
 explica "Esto crea la carpeta .dvc/ con la configuración mínima."
-run_cmd dvc init -q
+
+# Detectamos si la raíz git no es el directorio actual (ej: el alumno
+# clonó el curso entero desde GitHub y trabaja en una subcarpeta). En
+# ese caso usamos --subdir, que es lo que DVC pide en esos casos.
+GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+DVC_INIT_FLAGS="-f"
+if [ -n "$GIT_ROOT" ] && [ "$GIT_ROOT" != "$(pwd)" ]; then
+  DVC_INIT_FLAGS="$DVC_INIT_FLAGS --subdir"
+fi
+run_cmd dvc init $DVC_INIT_FLAGS
+
 git add .dvc .dvcignore 2>/dev/null
 git commit -q -m "inicializa dvc" 2>/dev/null || true
 echo "    ${C_GREEN}✓ DVC dentro de Git${C_RESET}"

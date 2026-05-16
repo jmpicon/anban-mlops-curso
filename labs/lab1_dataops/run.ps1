@@ -36,12 +36,9 @@ Pausa
 # Paso 0 - limpieza
 Paso "Paso 0 - Limpieza previa"
 Explica "Si has ejecutado este lab antes, borramos el estado anterior."
-$toRemove = @('.dvc', '.dvcignore', 'dvc.lock', 'data')
+$toRemove = @('.dvc', '.dvcignore', 'dvc.lock', 'dvc.yaml', 'data', '.git')
 foreach ($r in $toRemove) {
   if (Test-Path $r) { Remove-Item -Recurse -Force $r }
-}
-if ((Test-Path '.git') -and (Select-String -Path '.git/config' -Pattern 'lab1_dataops' -Quiet -ErrorAction SilentlyContinue)) {
-  Remove-Item -Recurse -Force '.git'
 }
 New-Item -ItemType Directory -Path "data/raw","data/processed" -Force | Out-Null
 Write-Host "    [OK] limpio" -ForegroundColor Green
@@ -76,7 +73,16 @@ Pausa
 
 # Paso 3 - dvc init
 Paso "Paso 3 - Inicializar DVC"
-Run-Cmd dvc init -q
+
+# Si la raiz git esta arriba (alumno cloned del repo), usar --subdir
+$gitRoot = (& git rev-parse --show-toplevel 2>$null)
+$cwd = (Get-Location).Path -replace '\\','/'
+$gitRootNorm = $gitRoot -replace '\\','/'
+if ($gitRoot -and $gitRootNorm -ne $cwd) {
+  Run-Cmd dvc init -f --subdir
+} else {
+  Run-Cmd dvc init -f
+}
 & git add .dvc .dvcignore 2>$null | Out-Null
 & git commit -q -m "inicializa dvc" 2>$null | Out-Null
 Write-Host "    [OK] DVC dentro de Git" -ForegroundColor Green
