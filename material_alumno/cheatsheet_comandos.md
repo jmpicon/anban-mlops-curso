@@ -46,7 +46,7 @@ export MLFLOW_TRACKING_URI=http://localhost:5000
 export MLFLOW_S3_ENDPOINT_URL=http://localhost:9000
 export AWS_ACCESS_KEY_ID=minio
 export AWS_SECRET_ACCESS_KEY=minio12345
-export MODEL_URI=models:/income-clf/Staging
+export MODEL_URI=models:/heart-failure-clf/Staging
 ```
 
 Truco: guarda esto en `setenv.sh` y haz `source setenv.sh`.
@@ -64,7 +64,7 @@ dvc remote modify --local minio access_key_id minio
 dvc remote modify --local minio secret_access_key minio12345
 
 # Trackear un fichero
-dvc add data/raw/adult.csv
+dvc add data/raw/heart_failure.csv
 
 # Subir al remoto
 dvc push
@@ -82,14 +82,14 @@ dvc dag
 dvc status
 
 # Recuperar un fichero a su versión correcta
-dvc checkout data/raw/adult.csv
+dvc checkout data/raw/heart_failure.csv
 ```
 
 # Git + DVC
 
 ```bash
 # Commit típico tras dvc add
-git add data/raw/adult.csv.dvc data/raw/.gitignore
+git add data/raw/heart_failure.csv.dvc data/raw/.gitignore
 git commit -m "trackea dataset"
 
 # Commit típico tras editar el pipeline
@@ -115,7 +115,7 @@ mlflow runs list --experiment-id 1
 ```python
 import mlflow, os
 mlflow.set_tracking_uri("http://localhost:5000")
-mlflow.set_experiment("income-classifier")
+mlflow.set_experiment("heart-failure-classifier")
 
 with mlflow.start_run(run_name="rf"):
     mlflow.log_params({"n_estimators": 300})
@@ -132,20 +132,20 @@ client = mlflow.MlflowClient()
 
 # Registrar
 mv = client.create_model_version(
-    name="income-clf",
+    name="heart-failure-clf",
     source=f"runs:/{run_id}/model",
     run_id=run_id,
 )
 
 # Promocionar
 client.transition_model_version_stage(
-    name="income-clf",
+    name="heart-failure-clf",
     version=1,
     stage="Staging",
 )
 
 # Cargar
-m = mlflow.pyfunc.load_model("models:/income-clf/Staging")
+m = mlflow.pyfunc.load_model("models:/heart-failure-clf/Staging")
 ```
 
 # FastAPI + Docker
@@ -160,13 +160,13 @@ docker build -t anban/income-api:0.1 -f Dockerfile .
 # Run en Linux
 docker run --rm -d --network host \
   -e MLFLOW_TRACKING_URI=http://localhost:5000 \
-  -e MODEL_URI=models:/income-clf/Staging \
+  -e MODEL_URI=models:/heart-failure-clf/Staging \
   anban/income-api:0.1
 
 # Run en Mac/Windows
 docker run --rm -d --network anbam_default -p 8000:8000 \
   -e MLFLOW_TRACKING_URI=http://anban-mlflow:5000 \
-  -e MODEL_URI=models:/income-clf/Staging \
+  -e MODEL_URI=models:/heart-failure-clf/Staging \
   anban/income-api:0.1
 
 # Ver logs
@@ -185,15 +185,14 @@ curl -s http://localhost:8000/health | jq
 # Version
 curl -s http://localhost:8000/version | jq
 
-# Predict
+# Predict (paciente con datos clínicos de insuficiencia cardíaca)
 curl -s -X POST http://localhost:8000/predict \
   -H 'content-type: application/json' \
   -d '{
-    "age": 39, "workclass": "State-gov", "education_num": 13,
-    "marital_status": "Never-married", "occupation": "Adm-clerical",
-    "relationship": "Not-in-family", "race": "White", "sex": "Male",
-    "capital_gain": 2174, "capital_loss": 0,
-    "hours_per_week": 40, "native_country": "United-States"
+    "age": 75, "anaemia": 0, "creatinine_phosphokinase": 582,
+    "diabetes": 0, "ejection_fraction": 20, "high_blood_pressure": 1,
+    "platelets": 265000, "serum_creatinine": 1.9, "serum_sodium": 130,
+    "sex": 1, "smoking": 0
   }' | jq
 
 # Metrics
@@ -227,7 +226,7 @@ python src/drift_report.py \
 
 ```bash
 python src/promote_if_better.py \
-    --name income-clf \
+    --name heart-failure-clf \
     --candidate-version 2 \
     --metric f1 \
     --min-improvement 0.01
@@ -265,7 +264,7 @@ dvc repro
 # Reentrenar y promocionar de cero
 python labs/lab2_mlflow_dvc/src/train.py --model rf
 python labs/lab2_mlflow_dvc/src/register_best.py \
-    --experiment income-classifier --metric f1 --name income-clf
+    --experiment heart-failure-classifier --metric f1 --name heart-failure-clf
 python labs/lab2_mlflow_dvc/src/promote.py \
-    --name income-clf --version 1 --stage Staging
+    --name heart-failure-clf --version 1 --stage Staging
 ```

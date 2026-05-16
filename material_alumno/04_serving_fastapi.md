@@ -21,7 +21,7 @@ No todos los modelos se sirven igual. Hay cuatro patrones clásicos:
 | Edge | Sin red, en el propio dispositivo | Modelo de reconocimiento de voz en móvil |
 
 En este módulo vemos **online**, que es el más común y la base para
-muchos casos. Concretamente, vamos a servir el modelo `income-clf`
+muchos casos. Concretamente, vamos a servir el modelo `heart-failure-clf`
 del Lab 2 como una API REST.
 
 \newpage
@@ -51,20 +51,22 @@ de entrada y Pydantic:
 - Convierte automáticamente tipos (string a int si tiene sentido).
 - Rechaza datos que no encajan, devolviendo un error 422 al cliente.
 
-Ejemplo de la API del Lab 3:
+Ejemplo de la API del Lab 3 (features clínicas):
 
 ```python
 from pydantic import BaseModel, Field
 
 class Features(BaseModel):
-    age: int = Field(ge=17, le=90)
-    workclass: str
-    education_num: int = Field(ge=0, le=20)
-    capital_gain: int = Field(ge=0)
+    age: float = Field(ge=18, le=110)
+    anaemia: int = Field(ge=0, le=1)
+    ejection_fraction: int = Field(ge=5, le=90)
+    serum_creatinine: float = Field(ge=0.1, le=20.0)
+    sex: int = Field(ge=0, le=1)
+    # ... y otras 6 features más
 ```
 
-`Field(ge=17, le=90)` significa "greater or equal than 17, less or
-equal than 90". Si un cliente manda `age=200`, Pydantic devuelve 422
+`Field(ge=18, le=110)` significa "greater or equal than 18, less or
+equal than 110". Si un cliente manda `age=200`, Pydantic devuelve 422
 y tu código nunca llega a ver ese dato malo.
 
 ## 2.3 Qué es Uvicorn
@@ -160,7 +162,7 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     MLFLOW_TRACKING_URI=http://anban-mlflow:5000 \
-    MODEL_URI=models:/income-clf/Staging
+    MODEL_URI=models:/heart-failure-clf/Staging
 
 COPY app/ ./app/
 
@@ -230,7 +232,7 @@ docker run -d \
   -e MLFLOW_S3_ENDPOINT_URL=http://anban-minio:9000 \
   -e AWS_ACCESS_KEY_ID=minio \
   -e AWS_SECRET_ACCESS_KEY=minio12345 \
-  -e MODEL_URI=models:/income-clf/Staging \
+  -e MODEL_URI=models:/heart-failure-clf/Staging \
   anban/income-api:lab3
 ```
 
@@ -286,7 +288,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-MODEL_URI = os.environ.get("MODEL_URI", "models:/income-clf/Staging")
+MODEL_URI = os.environ.get("MODEL_URI", "models:/heart-failure-clf/Staging")
 MLFLOW_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
 ```
 
@@ -307,18 +309,19 @@ state: dict[str, Any] = {
 }
 
 class Features(BaseModel):
-    age: int = Field(ge=17, le=90)
-    workclass: str
-    education_num: int = Field(ge=0, le=20)
-    marital_status: str
-    occupation: str
-    relationship: str
-    race: str
-    sex: str
-    capital_gain: int = Field(ge=0)
-    capital_loss: int = Field(ge=0)
-    hours_per_week: int = Field(ge=0, le=99)
-    native_country: str
+    age: float = Field(ge=18, le=110, description="Edad en años")
+    anaemia: int = Field(ge=0, le=1, description="1 si hay anemia")
+    creatinine_phosphokinase: int = Field(ge=1, le=12000,
+        description="CPK en suero (U/L)")
+    diabetes: int = Field(ge=0, le=1, description="1 si es diabético")
+    ejection_fraction: int = Field(ge=5, le=90,
+        description="Fracción de eyección ventricular (%)")
+    high_blood_pressure: int = Field(ge=0, le=1)
+    platelets: float = Field(ge=10000, le=1000000)
+    serum_creatinine: float = Field(ge=0.1, le=20.0)
+    serum_sodium: int = Field(ge=100, le=160)
+    sex: int = Field(ge=0, le=1, description="0=mujer, 1=hombre")
+    smoking: int = Field(ge=0, le=1)
 ```
 
 - `state` es un diccionario donde guardamos el modelo cargado y
@@ -415,7 +418,7 @@ métricas en Grafana.
 
 Para hacer este lab:
 
-1. **Lab 2 completado**: tienes el modelo `income-clf` versión 1 en
+1. **Lab 2 completado**: tienes el modelo `heart-failure-clf` versión 1 en
    stage `Staging`.
 2. **El laboratorio del curso arrancado**.
 3. **Estar en `labs/lab3_serving/`**.
@@ -465,7 +468,7 @@ docker run -d \
   -e MLFLOW_S3_ENDPOINT_URL=http://anban-minio:9000 \
   -e AWS_ACCESS_KEY_ID=minio \
   -e AWS_SECRET_ACCESS_KEY=minio12345 \
-  -e MODEL_URI=models:/income-clf/Staging \
+  -e MODEL_URI=models:/heart-failure-clf/Staging \
   anban/income-api:lab3
 ```
 
@@ -503,7 +506,7 @@ Salida:
 
 ```json
 {
-  "model_uri": "models:/income-clf/Staging",
+  "model_uri": "models:/heart-failure-clf/Staging",
   "run_id": "1944ae332b7249a9874dd98fd20c381a",
   "signature": "..."
 }
@@ -518,28 +521,32 @@ ganador. Esa es la trazabilidad completa.
 curl -s -X POST http://localhost:8000/predict \
   -H "content-type: application/json" \
   -d '{
-    "age": 39,
-    "workclass": "State-gov",
-    "education_num": 13,
-    "marital_status": "Never-married",
-    "occupation": "Adm-clerical",
-    "relationship": "Not-in-family",
-    "race": "White",
-    "sex": "Male",
-    "capital_gain": 2174,
-    "capital_loss": 0,
-    "hours_per_week": 40,
-    "native_country": "United-States"
+    "age": 75,
+    "anaemia": 0,
+    "creatinine_phosphokinase": 582,
+    "diabetes": 0,
+    "ejection_fraction": 20,
+    "high_blood_pressure": 1,
+    "platelets": 265000,
+    "serum_creatinine": 1.9,
+    "serum_sodium": 130,
+    "sex": 1,
+    "smoking": 0
   }'
 ```
+
+Estos son datos reales del primer paciente del dataset. Edad 75,
+fracción de eyección muy baja (20 %, lo normal es 55-70 %), creatinina
+alta (1,9 mg/dL, lo normal es < 1,3). Es un caso clínico de alto
+riesgo.
 
 Respuesta:
 
 ```json
 {
-  "label": 0,
-  "proba": 0.18,
-  "model_uri": "models:/income-clf/Staging",
+  "label": 1,
+  "proba": 1.0,
+  "model_uri": "models:/heart-failure-clf/Staging",
   "request_id": "a3f8c2d4e9b0",
   "latency_ms": 4.21
 }
@@ -556,17 +563,16 @@ curl -s -X POST http://localhost:8000/predict \
   -H "content-type: application/json" \
   -d '{
     "age": 200,
-    "workclass": "Private",
-    "education_num": 10,
-    "marital_status": "Single",
-    "occupation": "x",
-    "relationship": "x",
-    "race": "x",
-    "sex": "Male",
-    "capital_gain": 0,
-    "capital_loss": 0,
-    "hours_per_week": 40,
-    "native_country": "x"
+    "anaemia": 0,
+    "creatinine_phosphokinase": 100,
+    "diabetes": 0,
+    "ejection_fraction": 35,
+    "high_blood_pressure": 0,
+    "platelets": 250000,
+    "serum_creatinine": 1.0,
+    "serum_sodium": 140,
+    "sex": 1,
+    "smoking": 0
   }'
 ```
 
@@ -578,7 +584,7 @@ Pydantic debería rechazar el `age=200` con un 422:
     {
       "type": "less_than_equal",
       "loc": ["body", "age"],
-      "msg": "Input should be less than or equal to 90",
+      "msg": "Input should be less than or equal to 110",
       "input": 200
     }
   ]
@@ -625,7 +631,7 @@ Verás líneas como:
 ```
 INFO:     Started server process [7]
 INFO:     Waiting for application startup.
-loading model from models:/income-clf/Staging
+loading model from models:/heart-failure-clf/Staging
 model loaded · run_id=...
 INFO:     Application startup complete.
 INFO:     172.23.0.1:51920 - "POST /predict HTTP/1.1" 200 OK

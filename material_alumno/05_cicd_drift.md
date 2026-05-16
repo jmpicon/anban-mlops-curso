@@ -234,13 +234,15 @@ export AWS_SECRET_ACCESS_KEY=minio12345
 ## 7.2 Paso 2 — Generar un dataset con drift sintético
 
 El script `synthetic/make_drift.py` toma el `test.parquet` del Lab 1
-y le aplica tres tipos de modificaciones que simulan cambios de la
-realidad:
+y le aplica cuatro modificaciones que simulan cambios clínicos
+plausibles:
 
-- Recorta `hours_per_week` en un 15 % (la gente trabaja menos horas).
-- Suma ruido gaussiano a `capital_gain` (la distribución se ensancha).
-- Cambia aleatoriamente el 4 % de las etiquetas `income` (cambio leve
-  de prevalencia).
+- Suma 8 años a `age` (la población de pacientes envejece).
+- Aumenta la prevalencia de `high_blood_pressure` en 10 %.
+- Multiplica `creatinine_phosphokinase` por 1,5 (cambio de método de
+  laboratorio).
+- Cambia aleatoriamente el 4 % de las etiquetas `DEATH_EVENT` (leve
+  cambio de prevalencia).
 
 Ejecútalo:
 
@@ -252,7 +254,7 @@ python synthetic/make_drift.py
 Salida:
 
 ```
-OK · data/processed/drifted.parquet (9049 filas con drift inyectado)
+OK · data/processed/drifted.parquet (60 filas con drift inyectado)
 ```
 
 ## 7.3 Paso 3 — Generar el reporte de drift
@@ -282,7 +284,7 @@ cat reports/drift.json | head -20
 ```
 
 Las features con PSI > 0,25 son las que han cambiado mucho.
-Típicamente: `hours_per_week`, `capital_gain`, `income`.
+Típicamente: `age`, `creatinine_phosphokinase`, `high_blood_pressure`.
 
 > **Reflexión**: si vieras este reporte en producción real, ¿qué
 > harías? Tres opciones razonables:
@@ -330,7 +332,7 @@ candidata automáticamente. Pruébalo:
 
 ```bash
 python src/promote_if_better.py \
-  --name income-clf \
+  --name heart-failure-clf \
   --metric f1 \
   --min-improvement 0.01
 ```

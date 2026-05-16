@@ -4,7 +4,7 @@
 
 ## Objetivo
 
-Exponer el modelo `income-clf@Staging` como una API REST en contenedor con
+Exponer el modelo `heart-failure-clf@Staging` como una API REST en contenedor con
 endpoints documentados, validación de input y benchmarking básico.
 
 ## Arquitectura
@@ -25,7 +25,7 @@ export MLFLOW_TRACKING_URI=http://localhost:5000
 export MLFLOW_S3_ENDPOINT_URL=http://localhost:9000
 export AWS_ACCESS_KEY_ID=minio
 export AWS_SECRET_ACCESS_KEY=minio12345
-export MODEL_URI=models:/income-clf/Staging
+export MODEL_URI=models:/heart-failure-clf/Staging
 
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -41,14 +41,14 @@ curl -s -X POST http://localhost:8000/predict \
   -H 'content-type: application/json' \
   -d '{
     "age": 39,
-    "workclass": "State-gov",
+    "anaemia": 0, "creatinine_phosphokinase": 582,
     "education_num": 13,
     "marital_status": "Never-married",
     "occupation": "Adm-clerical",
     "relationship": "Not-in-family",
     "race": "White",
     "sex": "Male",
-    "capital_gain": 2174,
+    "high_blood_pressure": 1, "platelets": 265000,
     "capital_loss": 0,
     "hours_per_week": 40,
     "native_country": "United-States"
@@ -61,7 +61,7 @@ curl -s -X POST http://localhost:8000/predict \
 docker build -t anban/income-api:0.1 -f Dockerfile .
 docker run --rm -p 8000:8000 \
   -e MLFLOW_TRACKING_URI=http://host.docker.internal:5000 \
-  -e MODEL_URI=models:/income-clf/Staging \
+  -e MODEL_URI=models:/heart-failure-clf/Staging \
   anban/income-api:0.1
 ```
 

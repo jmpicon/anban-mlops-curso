@@ -1,4 +1,8 @@
 preprocess:
-  test_size: 0.3
+  test_size: 0.2
   random_state: 42
-  drop_columns: ["fnlwgt"]
+  # 'time' es leakage en este dataset: es el tiempo hasta el evento de
+  # muerte/censura. No estará disponible en producción cuando llegue
+  # un paciente nuevo. Lo quitamos del entrenamiento.
+  drop_columns:
+    - time

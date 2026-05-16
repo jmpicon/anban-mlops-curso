@@ -1,8 +1,15 @@
 """
-Validador de calidad para el dataset UCI Adult.
+Validador de calidad para el dataset Heart Failure Clinical Records.
 
-Cuatro comprobaciones rápidas. Termina con código 0 si pasan todas, o 1
+Cinco comprobaciones rápidas. Termina con código 0 si pasan todas, o 1
 si falla alguna (eso permite usarlo como gate en DVC o en CI).
+
+Las comprobaciones cubren:
+  - schema: columnas esperadas presentes.
+  - completitud: no hay nulos.
+  - rangos clínicos: valores plausibles para cada feature numérica.
+  - dominio binario: las columnas que deben ser 0/1 lo son.
+  - target: balance razonable de DEATH_EVENT.
 """
 from __future__ import annotations
 
@@ -12,61 +19,95 @@ from pathlib import Path
 import pandas as pd
 
 EXPECTED_COLUMNS = [
-    "age", "workclass", "fnlwgt", "education", "education_num",
-    "marital_status", "occupation", "relationship", "race", "sex",
-    "capital_gain", "capital_loss", "hours_per_week", "native_country",
-    "income",
+    "age",
+    "anaemia",
+    "creatinine_phosphokinase",
+    "diabetes",
+    "ejection_fraction",
+    "high_blood_pressure",
+    "platelets",
+    "serum_creatinine",
+    "serum_sodium",
+    "sex",
+    "smoking",
+    "time",
+    "DEATH_EVENT",
 ]
 
-WORKCLASS_DOMAIN = {
-    "Private", "Self-emp-not-inc", "Self-emp-inc", "Federal-gov",
-    "Local-gov", "State-gov", "Without-pay", "Never-worked",
+# Columnas que deben ser 0 o 1.
+BINARY_COLUMNS = [
+    "anaemia",
+    "diabetes",
+    "high_blood_pressure",
+    "sex",
+    "smoking",
+    "DEATH_EVENT",
+]
+
+# Rangos clínicos plausibles (con margen). Si tu dato cae fuera, el
+# validador para el pipeline y te avisa antes de entrenar modelos malos.
+NUMERIC_RANGES = {
+    "age": (18, 110),
+    "creatinine_phosphokinase": (1, 12000),
+    "ejection_fraction": (5, 90),        # porcentaje
+    "platelets": (10000, 1000000),       # plaquetas/mL
+    "serum_creatinine": (0.1, 20.0),     # mg/dL
+    "serum_sodium": (100, 160),          # mEq/L
+    "time": (1, 365),                    # días de seguimiento
 }
 
 
 def load(path: Path) -> pd.DataFrame:
-    # El CSV original de UCI Adult NO tiene cabecera. Pasamos los nombres
-    # nosotros y limpiamos los espacios iniciales de cada celda.
-    return pd.read_csv(
-        path,
-        header=None,
-        names=EXPECTED_COLUMNS,
-        skipinitialspace=True,
-        na_values=["?"],
-    )
+    """Lee el CSV. El fichero tiene cabecera, no hace falta names="""
+    return pd.read_csv(path)
 
 
 def expect_columns(df: pd.DataFrame) -> None:
     missing = set(EXPECTED_COLUMNS) - set(df.columns)
     assert not missing, f"faltan columnas: {missing}"
-    print("[OK] schema (las 15 columnas esperadas están presentes)")
+    print("[OK] schema (las 13 columnas esperadas están presentes)")
 
 
-def expect_age_range(df: pd.DataFrame, lo: int = 17, hi: int = 90) -> None:
-    bad = df[(df["age"] < lo) | (df["age"] > hi)]
-    assert bad.empty, f"{len(bad)} filas con age fuera de [{lo}, {hi}]"
-    print(f"[OK] age dentro de [{lo}, {hi}]")
+def expect_no_nulls(df: pd.DataFrame) -> None:
+    nulls = df.isna().sum()
+    bad = nulls[nulls > 0]
+    assert bad.empty, f"hay nulos: {bad.to_dict()}"
+    print("[OK] sin valores nulos en ninguna columna")
 
 
-def expect_workclass_in_domain(df: pd.DataFrame) -> None:
-    vals = set(df["workclass"].dropna().unique())
-    extras = vals - WORKCLASS_DOMAIN
-    assert not extras, f"valores inesperados en workclass: {extras}"
-    print("[OK] workclass dentro del dominio conocido")
+def expect_numeric_ranges(df: pd.DataFrame) -> None:
+    for col, (lo, hi) in NUMERIC_RANGES.items():
+        bad = df[(df[col] < lo) | (df[col] > hi)]
+        assert bad.empty, (
+            f"{len(bad)} filas con {col} fuera de [{lo}, {hi}]; "
+            f"ejemplos: {bad[col].head(3).tolist()}"
+        )
+    print(f"[OK] rangos clínicos plausibles en {len(NUMERIC_RANGES)} columnas")
 
 
-def expect_income_not_null(df: pd.DataFrame) -> None:
-    nulls = df["income"].isna().sum()
-    assert nulls == 0, f"income tiene {nulls} nulos"
-    print("[OK] income sin nulos")
+def expect_binary_domain(df: pd.DataFrame) -> None:
+    for col in BINARY_COLUMNS:
+        unique_vals = set(df[col].dropna().unique())
+        extras = unique_vals - {0, 1}
+        assert not extras, f"{col} tiene valores fuera de {{0,1}}: {extras}"
+    print(f"[OK] dominio binario correcto en {len(BINARY_COLUMNS)} columnas")
+
+
+def expect_target_balance(df: pd.DataFrame) -> None:
+    positives = df["DEATH_EVENT"].mean()
+    assert 0.05 < positives < 0.95, (
+        f"DEATH_EVENT demasiado desbalanceado: positives={positives:.3f}"
+    )
+    print(f"[OK] target balanceado razonablemente (positives={positives:.1%})")
 
 
 def main(path: str) -> int:
     df = load(Path(path))
     expect_columns(df)
-    expect_age_range(df)
-    expect_workclass_in_domain(df)
-    expect_income_not_null(df)
+    expect_no_nulls(df)
+    expect_numeric_ranges(df)
+    expect_binary_domain(df)
+    expect_target_balance(df)
     print("\nTODAS LAS EXPECTATIVAS PASADAS")
     return 0
 

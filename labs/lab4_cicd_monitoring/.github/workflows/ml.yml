@@ -66,13 +66,13 @@ jobs:
       - name: register best
         run: |
           python labs/lab2_mlflow_dvc/src/register_best.py \
-              --experiment income-classifier \
+              --experiment heart-failure-classifier \
               --metric f1 \
-              --name income-clf
+              --name heart-failure-clf
       - name: promote if better
         run: |
           python labs/lab4_cicd_monitoring/src/promote_if_better.py \
-              --name income-clf \
+              --name heart-failure-clf \
               --metric f1 \
               --min-improvement 0.01
 

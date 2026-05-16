@@ -81,7 +81,7 @@ pausa
 # Paso 2 — Modelo en el Registry
 # ============================================================
 paso "Paso 2 · Comprobar el modelo en MLflow Registry (lab 2)"
-explica "El modelo income-clf debe tener al menos una versión en Staging."
+explica "El modelo heart-failure-clf debe tener al menos una versión en Staging."
 
 python3 <<'PYTHON'
 import os, sys, mlflow
@@ -91,12 +91,12 @@ mlflow.set_tracking_uri("http://localhost:5050")
 client = MlflowClient()
 
 try:
-    versions = list(client.search_model_versions("name='income-clf'"))
+    versions = list(client.search_model_versions("name='heart-failure-clf'"))
 except Exception:
-    print("    ✗ no existe income-clf en el Registry"); sys.exit(1)
+    print("    ✗ no existe heart-failure-clf en el Registry"); sys.exit(1)
 
 if not versions:
-    print("    ✗ no hay versiones de income-clf"); sys.exit(1)
+    print("    ✗ no hay versiones de heart-failure-clf"); sys.exit(1)
 
 print("    Versiones registradas:")
 for v in sorted(versions, key=lambda x: int(x.version)):
@@ -168,7 +168,7 @@ mlflow.set_tracking_uri("http://localhost:5050")
 client = MlflowClient()
 
 # Buscamos la versión más reciente con stage no archivado
-versions = list(client.search_model_versions("name='income-clf'"))
+versions = list(client.search_model_versions("name='heart-failure-clf'"))
 candidates = [v for v in versions if v.current_stage in ("Staging", "Production")]
 if not candidates:
     candidates = versions
@@ -181,7 +181,7 @@ tags = run.data.tags
 
 date = datetime.date.today().isoformat()
 
-print(f"""# Model Card — income-clf
+print(f"""# Model Card — heart-failure-clf
 
 > Fecha: {date}
 > Versión: v{mv.version}
@@ -296,8 +296,8 @@ cat <<'CHECKLIST'
       [ ] train.parquet y test.parquet generados
 
     MLflow
-      [ ] Experimento income-classifier con 3 runs
-      [ ] Modelo income-clf registrado
+      [ ] Experimento heart-failure-classifier con 3 runs
+      [ ] Modelo heart-failure-clf registrado
       [ ] Versión 1 en stage Staging
 
     Serving

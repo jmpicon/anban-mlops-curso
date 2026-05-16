@@ -47,18 +47,18 @@ if (-not (Test-Url "http://localhost:5050")) {
 }
 $staging = ""
 try {
-  $r = Invoke-WebRequest -Uri "http://localhost:5050/api/2.0/mlflow/registered-models/get?name=income-clf" -UseBasicParsing -TimeoutSec 5
+  $r = Invoke-WebRequest -Uri "http://localhost:5050/api/2.0/mlflow/registered-models/get?name=heart-failure-clf" -UseBasicParsing -TimeoutSec 5
   $j = $r.Content | ConvertFrom-Json
   foreach ($v in $j.registered_model.latest_versions) {
     if ($v.current_stage -eq "Staging") { $staging = $v.version; break }
   }
 } catch {}
 if (-not $staging) {
-  Write-Host "    [FALLO] No hay version de income-clf en Staging" -ForegroundColor Red
+  Write-Host "    [FALLO] No hay version de heart-failure-clf en Staging" -ForegroundColor Red
   Write-Host "    Ejecuta primero:  cd ..\lab2_mlflow_dvc; .\run.ps1"
   exit 1
 }
-Write-Host "    [OK] income-clf v$staging en Staging" -ForegroundColor Green
+Write-Host "    [OK] heart-failure-clf v$staging en Staging" -ForegroundColor Green
 & docker info 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { Write-Host "    [FALLO] Docker no responde" -ForegroundColor Red; exit 1 }
 Write-Host "    [OK] Docker activo, red: $NETWORK" -ForegroundColor Green
@@ -90,7 +90,7 @@ Run-Cmd docker run -d --name $CONTAINER --network $NETWORK -p 8000:8000 `
   -e MLFLOW_S3_ENDPOINT_URL=http://anban-minio:9000 `
   -e AWS_ACCESS_KEY_ID=minio `
   -e AWS_SECRET_ACCESS_KEY=minio12345 `
-  -e MODEL_URI=models:/income-clf/Staging `
+  -e MODEL_URI=models:/heart-failure-clf/Staging `
   $IMG
 
 Write-Host "    Esperando a que la API arranque..."

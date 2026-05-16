@@ -29,9 +29,9 @@ python labs/lab2_mlflow_dvc/src/train.py --model rf
 
 # 5. promoción
 python labs/lab2_mlflow_dvc/src/register_best.py \
-    --experiment income-classifier --metric f1 --name income-clf
+    --experiment heart-failure-classifier --metric f1 --name heart-failure-clf
 python labs/lab2_mlflow_dvc/src/promote.py \
-    --name income-clf --version 1 --stage Staging
+    --name heart-failure-clf --version 1 --stage Staging
 
 # 6. servir
 docker build -t anban/income-api:0.1 -f labs/lab3_serving/Dockerfile labs/lab3_serving
@@ -48,12 +48,12 @@ python labs/lab4_cicd_monitoring/src/drift_report.py \
 
 # 8. ¿supera al actual?
 python labs/lab4_cicd_monitoring/src/promote_if_better.py \
-    --name income-clf --metric f1 --min-improvement 0.01
+    --name heart-failure-clf --metric f1 --min-improvement 0.01
 ```
 
 ## Checklist de governance (rellenar en grupo)
 
-Para el modelo `income-clf` que acabamos de poner en Staging:
+Para el modelo `heart-failure-clf` que acabamos de poner en Staging:
 
 - [ ] **Model Card** redactada: propósito, datos, métricas, sesgos, contraindicaciones.
 - [ ] **Owner** asignado y on-call documentado.

@@ -118,7 +118,7 @@ from mlflow.exceptions import RestException
 
 mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
 client = MlflowClient()
-name = "income-classifier"
+name = "heart-failure-classifier"
 
 # Buscamos el experimento activo o eliminado.
 exp = client.get_experiment_by_name(name)
@@ -132,7 +132,7 @@ else:
 
 # Modelo registrado: si existe, lo borramos para empezar versión 1 limpia.
 try:
-    client.delete_registered_model("income-clf")
+    client.delete_registered_model("heart-failure-clf")
     print("    modelo registrado anterior eliminado")
 except RestException:
     pass
@@ -153,7 +153,7 @@ run_cmd python src/train.py --model xgb
 
 echo ""
 echo "    Abre ${C_BOLD}http://localhost:5050${C_RESET} y entra en el experimento"
-echo "    'income-classifier'. Verás tres runs. Si marcas los tres y pulsas"
+echo "    'heart-failure-classifier'. Verás tres runs. Si marcas los tres y pulsas"
 echo "    Compare, ves la comparación de hiperparámetros y métricas."
 pausa
 
@@ -161,16 +161,16 @@ pausa
 # Paso 4 — Registrar el mejor
 # ============================================================
 paso "Paso 4 · Registrar el mejor en el Model Registry"
-explica "El script busca el run con mayor f1 y lo registra como 'income-clf'."
+explica "El script busca el run con mayor f1 y lo registra como 'heart-failure-clf'."
 
 run_cmd python src/register_best.py \
-  --experiment income-classifier \
+  --experiment heart-failure-classifier \
   --metric f1 \
-  --name income-clf
+  --name heart-failure-clf
 
 echo ""
 echo "    Vuelve a la UI de MLflow → pestaña 'Models' arriba a la derecha."
-echo "    Verás 'income-clf' con la versión 1."
+echo "    Verás 'heart-failure-clf' con la versión 1."
 pausa
 
 # ============================================================
@@ -181,10 +181,10 @@ explica "En el Registry, los modelos tienen 'stages' (None, Staging,"
 explica "Production, Archived). Mover una versión a Staging es decir:"
 explica "'lista para que la API de servicio la cargue'."
 
-run_cmd python src/promote.py --name income-clf --version 1 --stage Staging
+run_cmd python src/promote.py --name heart-failure-clf --version 1 --stage Staging
 
 echo ""
-echo "    Recarga la UI. El modelo income-clf v1 está en stage 'Staging'."
+echo "    Recarga la UI. El modelo heart-failure-clf v1 está en stage 'Staging'."
 pausa
 
 # ============================================================
@@ -200,7 +200,7 @@ os.environ["MLFLOW_S3_ENDPOINT_URL"] = "http://localhost:9000"
 os.environ["AWS_ACCESS_KEY_ID"] = "minio"
 os.environ["AWS_SECRET_ACCESS_KEY"] = "minio12345"
 
-m = mlflow.pyfunc.load_model("models:/income-clf/Staging")
+m = mlflow.pyfunc.load_model("models:/heart-failure-clf/Staging")
 print("")
 print("    Modelo cargado correctamente")
 print(f"    Run ID:   {m.metadata.run_id}")
@@ -223,13 +223,13 @@ echo ""
 echo "  ${C_GREEN}Has hecho:${C_RESET}"
 echo "    ✓ Entrenado 3 modelos con tracking automático en MLflow"
 echo "    ✓ Comparado runs por métricas en la UI"
-echo "    ✓ Registrado el mejor como 'income-clf'"
+echo "    ✓ Registrado el mejor como 'heart-failure-clf'"
 echo "    ✓ Promocionado a Staging"
 echo "    ✓ Cargado el modelo con su signature desde Python"
 echo ""
 echo "  ${C_BOLD}Comprobaciones:${C_RESET}"
 echo "    - http://localhost:5050  → experimento con 3 runs"
-echo "    - Tab Models → income-clf v1 en Staging"
+echo "    - Tab Models → heart-failure-clf v1 en Staging"
 echo "    - El bucket 'mlflow' de MinIO tiene los artefactos"
 echo ""
 echo "  Cuando estés listo, ve al Lab 3:"

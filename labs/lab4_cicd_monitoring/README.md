@@ -38,7 +38,7 @@ Para que funcione el job necesitas estos secrets en el repo:
 
 ```bash
 python src/promote_if_better.py \
-    --name income-clf \
+    --name heart-failure-clf \
     --candidate-version 2 \
     --metric f1 \
     --min-improvement 0.01
@@ -72,7 +72,7 @@ Devuelve:
 ```json
 {
   "drift_score_overall": 0.34,
-  "drifted_features": ["hours_per_week", "capital_gain"],
+  "drifted_features": ["age", "creatinine_phosphokinase", "high_blood_pressure"],
   "computed_at": "2026-05-09T10:23:45Z"
 }
 ```

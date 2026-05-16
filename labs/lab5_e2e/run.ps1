@@ -59,9 +59,9 @@ from mlflow.tracking import MlflowClient
 mlflow.set_tracking_uri("http://localhost:5050")
 client = MlflowClient()
 try:
-    versions = list(client.search_model_versions("name='income-clf'"))
+    versions = list(client.search_model_versions("name='heart-failure-clf'"))
 except Exception:
-    print("    [X] no existe income-clf"); sys.exit(1)
+    print("    [X] no existe heart-failure-clf"); sys.exit(1)
 if not versions:
     print("    [X] no hay versiones"); sys.exit(1)
 print("    Versiones registradas:")
@@ -115,7 +115,7 @@ import os, datetime, mlflow
 from mlflow.tracking import MlflowClient
 mlflow.set_tracking_uri("http://localhost:5050")
 client = MlflowClient()
-versions = list(client.search_model_versions("name='income-clf'"))
+versions = list(client.search_model_versions("name='heart-failure-clf'"))
 candidates = [v for v in versions if v.current_stage in ("Staging", "Production")]
 if not candidates: candidates = versions
 mv = sorted(candidates, key=lambda v: int(v.version))[-1]
@@ -124,7 +124,7 @@ metrics, params, tags = run.data.metrics, run.data.params, run.data.tags
 date = datetime.date.today().isoformat()
 
 with open("MODEL_CARD.md", "w", encoding="utf-8") as f:
-    f.write(f"""# Model Card - income-clf
+    f.write(f"""# Model Card - heart-failure-clf
 
 > Fecha: {date}
 > Version: v{mv.version}
@@ -194,7 +194,7 @@ Write-Host "    [ ] train/test.parquet generados"
 Write-Host ""
 Write-Host "  MLflow"
 Write-Host "    [ ] Experimento con 3 runs"
-Write-Host "    [ ] Modelo income-clf registrado"
+Write-Host "    [ ] Modelo heart-failure-clf registrado"
 Write-Host "    [ ] Version 1 en Staging"
 Write-Host ""
 Write-Host "  Serving"

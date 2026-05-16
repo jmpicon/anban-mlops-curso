@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     MLFLOW_TRACKING_URI=http://anban-mlflow:5000 \
-    MODEL_URI=models:/income-clf/Staging
+    MODEL_URI=models:/heart-failure-clf/Staging
 
 COPY app/ ./app/
 

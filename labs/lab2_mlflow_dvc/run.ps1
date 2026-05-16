@@ -89,7 +89,7 @@ from mlflow.exceptions import RestException
 
 mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
 client = MlflowClient()
-exp = client.get_experiment_by_name("income-classifier")
+exp = client.get_experiment_by_name("heart-failure-classifier")
 if exp is not None and exp.lifecycle_stage == "deleted":
     client.restore_experiment(exp.experiment_id)
     print("    restaurado experimento previo")
@@ -98,7 +98,7 @@ elif exp is None:
 else:
     print("    experimento activo")
 try:
-    client.delete_registered_model("income-clf")
+    client.delete_registered_model("heart-failure-clf")
     print("    modelo registrado anterior eliminado")
 except RestException:
     pass
@@ -111,17 +111,17 @@ Paso "Paso 3 - Entrenar tres modelos"
 Run-Cmd python src/train.py --model logreg
 Run-Cmd python src/train.py --model rf
 Run-Cmd python src/train.py --model xgb
-Write-Host "    Abre http://localhost:5050 -> experimento 'income-classifier'"
+Write-Host "    Abre http://localhost:5050 -> experimento 'heart-failure-classifier'"
 Pausa
 
 # Paso 4 - register
 Paso "Paso 4 - Registrar el mejor"
-Run-Cmd python src/register_best.py --experiment income-classifier --metric f1 --name income-clf
+Run-Cmd python src/register_best.py --experiment heart-failure-classifier --metric f1 --name heart-failure-clf
 Pausa
 
 # Paso 5 - promote
 Paso "Paso 5 - Promocionar a Staging"
-Run-Cmd python src/promote.py --name income-clf --version 1 --stage Staging
+Run-Cmd python src/promote.py --name heart-failure-clf --version 1 --stage Staging
 Pausa
 
 # Paso 6 - load
@@ -132,7 +132,7 @@ os.environ["MLFLOW_TRACKING_URI"] = "http://localhost:5050"
 os.environ["MLFLOW_S3_ENDPOINT_URL"] = "http://localhost:9000"
 os.environ["AWS_ACCESS_KEY_ID"] = "minio"
 os.environ["AWS_SECRET_ACCESS_KEY"] = "minio12345"
-m = mlflow.pyfunc.load_model("models:/income-clf/Staging")
+m = mlflow.pyfunc.load_model("models:/heart-failure-clf/Staging")
 print("    Modelo cargado correctamente")
 print(f"    Run ID:   {m.metadata.run_id}")
 if m.metadata.signature:

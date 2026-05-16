@@ -1,8 +1,9 @@
 """
-API de inferencia para income-clf.
+API de inferencia para el modelo heart-failure-clf.
 
 Carga el modelo desde MLflow Model Registry (Staging por defecto) y lo
-expone vía FastAPI con validación Pydantic y endpoints de health/version.
+expone via FastAPI con validación Pydantic y endpoints de
+health/version/predict/metrics.
 """
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-MODEL_URI = os.environ.get("MODEL_URI", "models:/income-clf/Staging")
+MODEL_URI = os.environ.get("MODEL_URI", "models:/heart-failure-clf/Staging")
 MLFLOW_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
 
 state: dict[str, Any] = {
@@ -33,18 +34,27 @@ state: dict[str, Any] = {
 
 
 class Features(BaseModel):
-    age: int = Field(ge=17, le=90)
-    workclass: str
-    education_num: int = Field(ge=0, le=20)
-    marital_status: str
-    occupation: str
-    relationship: str
-    race: str
-    sex: str
-    capital_gain: int = Field(ge=0)
-    capital_loss: int = Field(ge=0)
-    hours_per_week: int = Field(ge=0, le=99)
-    native_country: str
+    """Features clínicas que necesita el modelo de insuficiencia
+    cardíaca. NO incluimos 'time' porque es leakage (tiempo hasta el
+    evento, no disponible al predecir).
+    """
+    age: float = Field(ge=18, le=110, description="Edad en años")
+    anaemia: int = Field(ge=0, le=1, description="1 si hay anemia")
+    creatinine_phosphokinase: int = Field(ge=1, le=12000,
+        description="CPK en suero (U/L)")
+    diabetes: int = Field(ge=0, le=1, description="1 si es diabético")
+    ejection_fraction: int = Field(ge=5, le=90,
+        description="Fracción de eyección ventricular (%)")
+    high_blood_pressure: int = Field(ge=0, le=1,
+        description="1 si hay hipertensión")
+    platelets: float = Field(ge=10000, le=1000000,
+        description="Plaquetas (kiloplaquetas/mL)")
+    serum_creatinine: float = Field(ge=0.1, le=20.0,
+        description="Creatinina sérica (mg/dL)")
+    serum_sodium: int = Field(ge=100, le=160,
+        description="Sodio en suero (mEq/L)")
+    sex: int = Field(ge=0, le=1, description="0=mujer, 1=hombre")
+    smoking: int = Field(ge=0, le=1, description="1 si fuma")
 
 
 class Prediction(BaseModel):
@@ -63,17 +73,21 @@ def _expected_columns() -> list[str]:
 
 
 def _to_frame(payload: Features) -> pd.DataFrame:
+    """Convierte el payload Pydantic a DataFrame con los tipos que
+    espera el modelo según su signature."""
     df = pd.DataFrame([payload.model_dump()])
-    df = pd.get_dummies(df)
-    expected = _expected_columns()
+
     sig = state["signature"]
     type_by_col: dict[str, str] = {}
     if sig is not None and sig.inputs is not None:
         for c in sig.inputs.inputs:
-            # c.type es un Enum (DataType.long, DataType.boolean...).
-            # Usamos .name para quedarnos con "long", "boolean", "double".
+            # c.type es un Enum (DataType.long, DataType.double, ...).
+            # Usamos .name para quedarnos con "long", "double", etc.
             type_by_col[c.name] = getattr(c.type, "name", str(c.type))
 
+    # Alinear con las columnas esperadas (por si el modelo tiene un
+    # orden distinto al del payload).
+    expected = _expected_columns()
     if expected:
         for c in expected:
             if c not in df.columns:
@@ -88,7 +102,7 @@ def _to_frame(payload: Features) -> pd.DataFrame:
             df[col] = df[col].astype(bool)
         elif t == "long":
             df[col] = df[col].astype("int64")
-        elif t == "double" or t == "float":
+        elif t in ("double", "float"):
             df[col] = df[col].astype("float64")
     return df
 
@@ -107,9 +121,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Income Classifier API",
+    title="Heart Failure Risk API",
     version="0.1.0",
-    description="ANBAN MLOps course · Lab 3",
+    description=(
+        "Predice el riesgo de muerte tras un evento de insuficiencia "
+        "cardíaca. Modelo entrenado con el dataset Heart Failure "
+        "Clinical Records (UCI, 2020). Uso docente. NO usar para "
+        "decisiones clínicas reales."
+    ),
     lifespan=lifespan,
 )
 
@@ -142,8 +161,8 @@ def predict(payload: Features) -> Prediction:
     try:
         X = _to_frame(payload)
         proba = float(state["model"].predict(X)[0])
-        # Si el modelo es un clasificador con predict_proba el wrapper puede
-        # devolver la prob; si devuelve la clase, casteamos.
+        # Si el modelo devuelve la clase (0/1) en lugar de la
+        # probabilidad, esto castea correctamente.
         label = int(proba >= 0.5)
     except Exception as exc:  # noqa: BLE001
         state["errors"] += 1

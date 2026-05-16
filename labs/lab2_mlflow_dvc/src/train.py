@@ -40,7 +40,7 @@ except ImportError:
     HAVE_XGB = False
 
 DATA_DIR = Path("../lab1_dataops/data/processed")
-EXPERIMENT = "income-classifier"
+EXPERIMENT = "heart-failure-classifier"
 
 
 def git_commit() -> str:
@@ -85,8 +85,9 @@ def main() -> None:
 
     train = pd.read_parquet(Path(args.data_dir) / "train.parquet")
     test  = pd.read_parquet(Path(args.data_dir) / "test.parquet")
-    X_tr, y_tr = train.drop(columns="income"), train["income"]
-    X_te, y_te = test.drop(columns="income"),  test["income"]
+    TARGET = "DEATH_EVENT"
+    X_tr, y_tr = train.drop(columns=TARGET), train[TARGET]
+    X_te, y_te = test.drop(columns=TARGET),  test[TARGET]
 
     model, params = build_model(args.model)
 

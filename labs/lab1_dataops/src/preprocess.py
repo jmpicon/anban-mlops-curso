@@ -1,6 +1,16 @@
 """
-Preprocesa UCI Adult: limpia, codifica y particiona en train/test.
-Lee parámetros de ``params.yaml`` para que DVC los considere dependencia.
+Preprocesa el dataset Heart Failure Clinical Records:
+- Quita la columna `time` (es leakage: representa el tiempo hasta el
+  evento y no estará disponible en producción cuando hagamos la
+  predicción para un paciente nuevo).
+- Quita otras columnas según params.yaml si las añades.
+- Divide en train/test con estratificación por DEATH_EVENT.
+
+No hace falta one-hot encoding: todas las features son numéricas o
+binarias.
+
+Los parámetros viven en params.yaml para que DVC los detecte como
+dependencia y reejecute solo lo necesario.
 """
 from __future__ import annotations
 
@@ -10,32 +20,23 @@ import pandas as pd
 import yaml
 from sklearn.model_selection import train_test_split
 
-from ge_validate import EXPECTED_COLUMNS  # reuso
-
 PARAMS = yaml.safe_load(Path("params.yaml").read_text())["preprocess"]
-SRC = Path("data/raw/adult.csv")
+SRC = Path("data/raw/heart_failure.csv")
 OUT = Path("data/processed")
 OUT.mkdir(parents=True, exist_ok=True)
 
+TARGET = "DEATH_EVENT"
+
 
 def main() -> None:
-    df = pd.read_csv(
-        SRC,
-        header=None,
-        names=EXPECTED_COLUMNS,
-        skipinitialspace=True,
-        na_values="?",
-    )
-    df = df.dropna(subset=["workclass", "occupation", "native_country"])
-    df = df.drop(columns=PARAMS["drop_columns"])
+    df = pd.read_csv(SRC)
 
-    df["income"] = (df["income"].str.strip() == ">50K").astype(int)
+    # Quitamos columnas que NO se deben usar para entrenar.
+    drop_cols = PARAMS.get("drop_columns", [])
+    df = df.drop(columns=[c for c in drop_cols if c in df.columns])
 
-    cat_cols = df.select_dtypes(include="object").columns.tolist()
-    df = pd.get_dummies(df, columns=cat_cols, drop_first=True)
-
-    X = df.drop(columns=["income"])
-    y = df["income"]
+    X = df.drop(columns=[TARGET])
+    y = df[TARGET]
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
@@ -49,6 +50,7 @@ def main() -> None:
 
     print(f"train: {X_train.shape} | test: {X_test.shape}")
     print(f"positives: train={y_train.mean():.3f} test={y_test.mean():.3f}")
+    print(f"columnas usadas: {list(X_train.columns)}")
 
 
 if __name__ == "__main__":

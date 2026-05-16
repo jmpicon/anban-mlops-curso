@@ -54,7 +54,7 @@ Aprende este vocabulario porque lo usaremos a partir de ahora:
 
 | Término | Significado |
 |---------|-------------|
-| Experiment | Carpeta lógica que agrupa runs de un mismo problema. Por ejemplo: `income-classifier`. |
+| Experiment | Carpeta lógica que agrupa runs de un mismo problema. Por ejemplo: `heart-failure-classifier`. |
 | Run | Una ejecución concreta de entrenamiento. Tiene su propio ID. |
 | Parameter | Valor fijado antes del entrenamiento (hiperparámetro, configuración). |
 | Metric | Valor medido. Puede ser un número final o una serie temporal (por epoch). |
@@ -238,7 +238,7 @@ Abre `src/train.py`. Las partes clave son:
 ```python
 # 1. Conectar con el tracking server
 mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
-mlflow.set_experiment("income-classifier")
+mlflow.set_experiment("heart-failure-classifier")
 
 # 2. Abrir un run nuevo
 with mlflow.start_run(run_name=args.model):
@@ -281,7 +281,7 @@ Explicación bloque a bloque:
 
 - **set_tracking_uri**: le dice al cliente Python a qué tracking
   server hablar. Sin esto, MLflow usa una carpeta local.
-- **set_experiment**: si el experimento "income-classifier" no
+- **set_experiment**: si el experimento "heart-failure-classifier" no
   existe, lo crea. Si existe, lo selecciona.
 - **start_run**: abre un run nuevo dentro del experimento. El
   bloque `with` se asegura de cerrarlo aunque el código falle.
@@ -319,7 +319,7 @@ una línea como:
 ## 5.4 Paso 4 — Comparar los runs en la UI
 
 Abre http://localhost:5050 en el navegador. En la barra lateral
-izquierda, click en el experimento **income-classifier**. Verás los
+izquierda, click en el experimento **heart-failure-classifier**. Verás los
 tres runs.
 
 Para compararlos:
@@ -337,18 +337,18 @@ Tienes dos formas de registrar el modelo: por la UI o por código.
 Vamos a hacerlo por código, que es lo que harías en un pipeline real.
 
 ```bash
-python src/register_best.py --experiment income-classifier --metric f1 --name income-clf
+python src/register_best.py --experiment heart-failure-classifier --metric f1 --name heart-failure-clf
 ```
 
 El script `register_best.py`:
 
-1. Busca el run del experimento `income-classifier` con mayor F1.
+1. Busca el run del experimento `heart-failure-classifier` con mayor F1.
 2. Llama a `mlflow.register_model()` con el path del modelo de ese
    run.
-3. Crea una nueva versión del modelo `income-clf` en el Registry.
+3. Crea una nueva versión del modelo `heart-failure-clf` en el Registry.
 
 Recarga http://localhost:5050 y entra en la pestaña **Models** arriba
-a la derecha. Verás `income-clf` con su versión 1.
+a la derecha. Verás `heart-failure-clf` con su versión 1.
 
 ## 5.6 Paso 6 — Promocionar a Staging
 
@@ -356,13 +356,13 @@ En el Registry, las versiones empiezan en stage `None`. Para
 promocionarla:
 
 ```bash
-python src/promote.py --name income-clf --version 1 --stage Staging
+python src/promote.py --name heart-failure-clf --version 1 --stage Staging
 ```
 
 Recarga la UI. La versión 1 ahora está en **Staging**.
 
 ¿Para qué sirve esto? Cuando en el Lab 3 sirvamos el modelo con
-FastAPI, la API apuntará a `models:/income-clf/Staging`. Si mañana
+FastAPI, la API apuntará a `models:/heart-failure-clf/Staging`. Si mañana
 quieres cambiar el modelo que sirve en producción, solo tienes que
 promocionar otro y la API lo recoge en su próxima recarga. **No hay
 que volver a desplegar código**.
@@ -387,7 +387,7 @@ os.environ["MLFLOW_S3_ENDPOINT_URL"] = "http://localhost:9000"
 os.environ["AWS_ACCESS_KEY_ID"] = "minio"
 os.environ["AWS_SECRET_ACCESS_KEY"] = "minio12345"
 
-m = mlflow.pyfunc.load_model("models:/income-clf/Staging")
+m = mlflow.pyfunc.load_model("models:/heart-failure-clf/Staging")
 
 print("Run ID:", m.metadata.run_id)
 print("Inputs:", len(m.metadata.signature.inputs.inputs), "columnas")
@@ -400,7 +400,7 @@ Run ID: 1944ae332b7249a9874dd98fd20c381a
 Inputs: 95 columnas
 ```
 
-Esa única línea (`models:/income-clf/Staging`) es todo lo que necesita
+Esa única línea (`models:/heart-failure-clf/Staging`) es todo lo que necesita
 la API para cargar el modelo correcto, con su esquema completo y
 trazabilidad al run que lo entrenó. Eso es el Registry en su esencia.
 
@@ -454,9 +454,9 @@ En un problema de detección de fraude o de morosidad te importa
 - ¿Tienes tags `git_commit`, `dataset_version`, `owner` y
   `framework` en cada run?
 - ¿Tienes un modelo logueado con signature en cada run?
-- ¿Existe el modelo `income-clf` versión 1 en el Registry, en stage
+- ¿Existe el modelo `heart-failure-clf` versión 1 en el Registry, en stage
   `Staging`?
-- ¿Has podido cargar el modelo desde Python con `models:/income-clf/Staging`?
+- ¿Has podido cargar el modelo desde Python con `models:/heart-failure-clf/Staging`?
 
 Si todo es sí, pasas al módulo 4 (serving).
 

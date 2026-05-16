@@ -27,7 +27,7 @@ Write-Host ""
 Write-Host "  En este lab vas a:"
 Write-Host "    1. Crear un repo git nuevo."
 Write-Host "    2. Inicializar DVC dentro del repo."
-Write-Host "    3. Trackear un dataset (UCI Adult) con DVC."
+Write-Host "    3. Trackear un dataset clinico (Heart Failure) con DVC."
 Write-Host "    4. Definir un pipeline declarativo."
 Write-Host "    5. Ejecutarlo y ver la magia."
 Write-Host "    6. Romper los datos a proposito para ver la proteccion."
@@ -102,12 +102,12 @@ Write-Host "    [OK]" -ForegroundColor Green
 Pausa
 
 # Paso 5 - copiar dataset
-Paso "Paso 5 - Copiar el dataset UCI Adult"
-$src = "..\..\datasets\adult\adult.csv"
+Paso "Paso 5 - Copiar el dataset Heart Failure"
+$src = "..\..\datasets\heart_failure\heart_failure.csv"
 if (Test-Path $src) {
-  Copy-Item $src "data\raw\adult.csv"
+  Copy-Item $src "data\raw\heart_failure.csv"
   Write-Host "    Dataset copiado:"
-  Get-Item "data\raw\adult.csv" | Format-Table Length, Name -AutoSize
+  Get-Item "data\raw\heart_failure.csv" | Format-Table Length, Name -AutoSize
   Write-Host "    [OK]" -ForegroundColor Green
 } else {
   Write-Host "    [FALLO] no encuentro $src" -ForegroundColor Red
@@ -118,10 +118,10 @@ Pausa
 # Paso 6 - dvc add
 Paso "Paso 6 - dvc add"
 Explica "DVC calcula el hash, mueve el fichero a su cache y crea un puntero."
-Run-Cmd dvc add data/raw/adult.csv
+Run-Cmd dvc add data/raw/heart_failure.csv
 Write-Host "    Archivos creados:"
 Get-ChildItem data\raw | Format-Table Length, Name -AutoSize
-& git add data/raw/adult.csv.dvc data/raw/.gitignore 2>$null | Out-Null
+& git add data/raw/heart_failure.csv.dvc data/raw/.gitignore 2>$null | Out-Null
 & git commit -q -m "trackea dataset" 2>$null | Out-Null
 Write-Host "    [OK] dataset trackeado por DVC" -ForegroundColor Green
 Pausa
@@ -138,14 +138,14 @@ if (-not (Test-Path dvc.yaml)) {
 @'
 stages:
   validate:
-    cmd: python src/ge_validate.py data/raw/adult.csv
+    cmd: python src/ge_validate.py data/raw/heart_failure.csv
     deps:
-      - data/raw/adult.csv
+      - data/raw/heart_failure.csv
       - src/ge_validate.py
   preprocess:
     cmd: python src/preprocess.py
     deps:
-      - data/raw/adult.csv
+      - data/raw/heart_failure.csv
       - src/preprocess.py
       - params.yaml
     outs:
@@ -158,7 +158,9 @@ if (-not (Test-Path params.yaml)) {
 preprocess:
   test_size: 0.2
   random_state: 42
-  drop_columns: ["fnlwgt", "education"]
+  # 'time' es leakage: tiempo hasta el evento. Lo quitamos.
+  drop_columns:
+    - time
 '@ | Out-File -Encoding utf8 params.yaml
 }
 Run-Cmd dvc repro
@@ -174,16 +176,16 @@ Pausa
 
 # Paso 10 - romper dato
 Paso "Paso 10 - Romper el dato a proposito"
-$lines = Get-Content data\raw\adult.csv
+$lines = Get-Content data\raw\heart_failure.csv
 $parts = $lines[4].Split(',')
 $parts[0] = '200'
 $lines[4] = ($parts -join ',')
-$lines | Set-Content data\raw\adult.csv
+$lines | Set-Content data\raw\heart_failure.csv
 Write-Host "    Linea 5 modificada: age=200"
 Write-Host ""
-Write-Host "    `$ python src/ge_validate.py data/raw/adult.csv" -ForegroundColor Yellow
+Write-Host "    `$ python src/ge_validate.py data/raw/heart_failure.csv" -ForegroundColor Yellow
 Write-Host ""
-& python src/ge_validate.py data/raw/adult.csv
+& python src/ge_validate.py data/raw/heart_failure.csv
 if ($LASTEXITCODE -ne 0) {
   Write-Host ""
   Write-Host "    [OK] La validacion detecto el age fuera de rango." -ForegroundColor Green
@@ -194,9 +196,9 @@ Pausa
 
 # Paso 11 - recuperar
 Paso "Paso 11 - Recuperar el dato bueno"
-Run-Cmd Copy-Item ..\..\datasets\adult\adult.csv data\raw\adult.csv -Force
-Run-Cmd dvc add data/raw/adult.csv
-& git add data/raw/adult.csv.dvc 2>$null | Out-Null
+Run-Cmd Copy-Item ..\..\datasets\heart_failure\heart_failure.csv data\raw\heart_failure.csv -Force
+Run-Cmd dvc add data/raw/heart_failure.csv
+& git add data/raw/heart_failure.csv.dvc 2>$null | Out-Null
 & git commit -q -m "restaura dataset" 2>$null | Out-Null
 Run-Cmd dvc repro
 Pausa

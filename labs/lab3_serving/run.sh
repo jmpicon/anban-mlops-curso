@@ -47,14 +47,14 @@ pausa
 # Paso 0 — Prerrequisitos
 # ============================================================
 paso "Paso 0 · Comprobar prerrequisitos"
-explica "Hace falta que el modelo income-clf esté en Staging."
+explica "Hace falta que el modelo heart-failure-clf esté en Staging."
 
 if ! curl -fsS -m 5 -o /dev/null http://localhost:5050; then
   echo "    ${C_RED}✗ MLflow no responde${C_RESET}"
   exit 1
 fi
 
-STAGING=$(curl -fsS -m 5 "http://localhost:5050/api/2.0/mlflow/registered-models/get?name=income-clf" 2>/dev/null | python3 -c "
+STAGING=$(curl -fsS -m 5 "http://localhost:5050/api/2.0/mlflow/registered-models/get?name=heart-failure-clf" 2>/dev/null | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -67,11 +67,11 @@ except Exception:
 ")
 
 if [[ -z "$STAGING" ]]; then
-  echo "    ${C_RED}✗ No hay versión de income-clf en Staging${C_RESET}"
+  echo "    ${C_RED}✗ No hay versión de heart-failure-clf en Staging${C_RESET}"
   echo "    Ejecuta primero:  cd ../lab2_mlflow_dvc && ./run.sh"
   exit 1
 fi
-echo "    ${C_GREEN}✓${C_RESET} income-clf v$STAGING está en Staging"
+echo "    ${C_GREEN}✓${C_RESET} heart-failure-clf v$STAGING está en Staging"
 
 if ! docker info >/dev/null 2>&1; then
   echo "    ${C_RED}✗ Docker no responde${C_RESET}"
@@ -121,7 +121,7 @@ run_cmd docker run -d \
   -e MLFLOW_S3_ENDPOINT_URL=http://anban-minio:9000 \
   -e AWS_ACCESS_KEY_ID=minio \
   -e AWS_SECRET_ACCESS_KEY=minio12345 \
-  -e MODEL_URI=models:/income-clf/Staging \
+  -e MODEL_URI=models:/heart-failure-clf/Staging \
   "$IMG"
 
 echo "    Esperando a que la API arranque y cargue el modelo..."
@@ -164,7 +164,7 @@ curl -s http://localhost:8000/version | python3 -m json.tool | sed 's/^/      /'
 echo ""
 echo "    Fíjate en el campo 'model_uri'. Es la referencia lógica al"
 echo "    Model Registry, NO una ruta de fichero. Si mañana promocionamos"
-echo "    income-clf v2, esta URI no cambia."
+echo "    heart-failure-clf v2, esta URI no cambia."
 pausa
 
 # ============================================================

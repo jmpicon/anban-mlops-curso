@@ -29,13 +29,13 @@ python src/train.py --model rf
 python src/train.py --model xgb
 ```
 
-Cada ejecución crea un run dentro del experimento `income-classifier`.
+Cada ejecución crea un run dentro del experimento `heart-failure-classifier`.
 
 ## Paso 2 · Comparar runs
 
 Abre [http://localhost:5000](http://localhost:5000):
 
-- En el experimento `income-classifier`, marca los 3 runs y pulsa **Compare**.
+- En el experimento `heart-failure-classifier`, marca los 3 runs y pulsa **Compare**.
 - Examina el gráfico de coordenadas paralelas.
 - Ordena por `f1` y elige el ganador.
 
@@ -44,26 +44,26 @@ Abre [http://localhost:5000](http://localhost:5000):
 Desde la UI de MLflow → run ganador → tab **Artifacts** → seleccionar
 carpeta `model` → botón **Register Model**:
 
-- Name: `income-clf`
+- Name: `heart-failure-clf`
 - Version: 1 (auto)
 
 O por CLI:
 
 ```bash
-python src/register_best.py --experiment income-classifier --metric f1 --name income-clf
+python src/register_best.py --experiment heart-failure-classifier --metric f1 --name heart-failure-clf
 ```
 
 ## Paso 4 · Promocionar a Staging
 
 ```bash
-python src/promote.py --name income-clf --version 1 --stage Staging
+python src/promote.py --name heart-failure-clf --version 1 --stage Staging
 ```
 
 ## Paso 5 · Cargar el modelo desde el Registry
 
 ```python
 import mlflow.pyfunc
-m = mlflow.pyfunc.load_model("models:/income-clf/Staging")
+m = mlflow.pyfunc.load_model("models:/heart-failure-clf/Staging")
 print(m.metadata.signature)
 ```
 
@@ -71,7 +71,7 @@ print(m.metadata.signature)
 
 - [ ] Hay 3 runs con tags `dataset_version`, `git_commit` y `owner`.
 - [ ] Cada run tiene `model` con signature.
-- [ ] Existe un modelo `income-clf` en el Registry.
+- [ ] Existe un modelo `heart-failure-clf` en el Registry.
 - [ ] Su versión 1 está en stage `Staging`.
 - [ ] Puedes recargarlo y predecir.
 

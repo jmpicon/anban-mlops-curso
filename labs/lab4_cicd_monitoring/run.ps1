@@ -97,15 +97,15 @@ import os, mlflow
 from mlflow.tracking import MlflowClient
 mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
 client = MlflowClient()
-print("    Estado actual de income-clf:")
-for v in client.search_model_versions("name='income-clf'"):
+print("    Estado actual de heart-failure-clf:")
+for v in client.search_model_versions("name='heart-failure-clf'"):
     run = client.get_run(v.run_id)
     f1 = run.data.metrics.get("f1", float("nan"))
     print(f"      v{v.version}  stage={v.current_stage:<12}  f1={f1:.4f}")
 '@
 $py2 | python
 Write-Host ""
-Run-Cmd python src/promote_if_better.py --name income-clf --metric f1 --min-improvement 0.01
+Run-Cmd python src/promote_if_better.py --name heart-failure-clf --metric f1 --min-improvement 0.01
 Pausa
 
 # Paso 4 - workflow
@@ -120,7 +120,7 @@ Banner "LAB 4 COMPLETO"
 Write-Host ""
 Write-Host "  Cosas que mirar:"
 Write-Host "    - reports\drift.html"
-Write-Host "    - http://localhost:5050 -> Models -> income-clf"
+Write-Host "    - http://localhost:5050 -> Models -> heart-failure-clf"
 Write-Host ""
 Write-Host "  Cuando estes listo, ve al Lab 5:"
 Write-Host "      cd ..\lab5_e2e"

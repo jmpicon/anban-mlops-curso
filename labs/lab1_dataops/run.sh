@@ -56,7 +56,7 @@ echo ""
 echo "  En este lab vas a:"
 echo "    1. Crear un repo git nuevo."
 echo "    2. Inicializar DVC dentro del repo."
-echo "    3. Trackear un dataset (UCI Adult) con DVC."
+echo "    3. Trackear un dataset clínico (Heart Failure) con DVC."
 echo "    4. Definir un pipeline declarativo (validar + preprocesar)."
 echo "    5. Ejecutarlo y ver la magia."
 echo "    6. Romper los datos a propósito para ver que DVC nos protege."
@@ -174,17 +174,18 @@ pausa
 # ============================================================
 # Paso 5 — Copiar el dataset
 # ============================================================
-paso "Paso 5 · Copiar el dataset UCI Adult"
-explica "Es un CSV con datos de censo USA 1994. ~30K filas, 3.9 MB."
+paso "Paso 5 · Copiar el dataset Heart Failure"
+explica "Es un CSV con 299 pacientes de insuficiencia cardíaca (UCI, 2020)."
+explica "El target es DEATH_EVENT: si el paciente falleció en el seguimiento."
 
-if [ -f "../../datasets/adult/adult.csv" ]; then
-  cp ../../datasets/adult/adult.csv data/raw/adult.csv
+if [ -f "../../datasets/heart_failure/heart_failure.csv" ]; then
+  cp ../../datasets/heart_failure/heart_failure.csv data/raw/heart_failure.csv
   echo ""
   echo "    Dataset copiado desde el repo:"
-  ls -lh data/raw/adult.csv
+  ls -lh data/raw/heart_failure.csv
   echo "    ${C_GREEN}✓ ok${C_RESET}"
 else
-  echo "    ${C_RED}✗ no encuentro datasets/adult/adult.csv${C_RESET}"
+  echo "    ${C_RED}✗ no encuentro datasets/heart_failure/heart_failure.csv${C_RESET}"
   echo "    ${C_YELLOW}avisa al profesor.${C_RESET}"
   exit 1
 fi
@@ -196,19 +197,19 @@ pausa
 paso "Paso 6 · Decirle a DVC que trackee el dataset"
 explica "DVC calcula el hash, mueve el fichero a su caché interna,"
 explica "y crea un puntero .dvc minúsculo que SÍ se commitea en Git."
-run_cmd dvc add data/raw/adult.csv
+run_cmd dvc add data/raw/heart_failure.csv
 
 echo ""
 echo "    Mira los archivos que se han creado:"
 ls -la data/raw/
 echo ""
 echo "    El puntero .dvc dice:"
-cat data/raw/adult.csv.dvc | sed 's/^/      /'
+cat data/raw/heart_failure.csv.dvc | sed 's/^/      /'
 echo ""
 echo "    El .gitignore generado dice:"
 cat data/raw/.gitignore | sed 's/^/      /'
 
-git add data/raw/adult.csv.dvc data/raw/.gitignore 2>/dev/null
+git add data/raw/heart_failure.csv.dvc data/raw/.gitignore 2>/dev/null
 git commit -q -m "trackea dataset" 2>/dev/null || true
 echo ""
 echo "    ${C_GREEN}✓ dataset trackeado por DVC, no por Git${C_RESET}"
@@ -238,14 +239,14 @@ if [ ! -f dvc.yaml ]; then
   cat > dvc.yaml <<'YAML'
 stages:
   validate:
-    cmd: python src/ge_validate.py data/raw/adult.csv
+    cmd: python src/ge_validate.py data/raw/heart_failure.csv
     deps:
-      - data/raw/adult.csv
+      - data/raw/heart_failure.csv
       - src/ge_validate.py
   preprocess:
     cmd: python src/preprocess.py
     deps:
-      - data/raw/adult.csv
+      - data/raw/heart_failure.csv
       - src/preprocess.py
       - params.yaml
     outs:
@@ -288,22 +289,22 @@ explica "Vamos a meter un valor inválido (age=200) en el CSV y ver"
 explica "que la validación detecta el problema antes de procesar nada."
 
 python3 -c "
-with open('data/raw/adult.csv', 'r') as f:
+with open('data/raw/heart_failure.csv', 'r') as f:
     lines = f.readlines()
 parts = lines[4].split(',')
 parts[0] = '200'
 lines[4] = ','.join(parts)
-with open('data/raw/adult.csv', 'w') as f:
+with open('data/raw/heart_failure.csv', 'w') as f:
     f.writelines(lines)
 print('    Línea 5 modificada: age=200')
 "
 
 echo ""
 echo "    Ejecuto SOLO el validador (sin dvc repro) para ver el fallo:"
-echo "    ${C_YELLOW}\$ python src/ge_validate.py data/raw/adult.csv${C_RESET}"
+echo "    ${C_YELLOW}\$ python src/ge_validate.py data/raw/heart_failure.csv${C_RESET}"
 echo ""
 set +e
-python src/ge_validate.py data/raw/adult.csv
+python src/ge_validate.py data/raw/heart_failure.csv
 RC=$?
 set -e
 if [ $RC -ne 0 ]; then
@@ -324,9 +325,9 @@ explica "En un equipo real recuperaríamos del remoto (dvc pull) o del backup."
 explica "Aquí, para que sea reproducible siempre, lo volvemos a copiar de"
 explica "la fuente original y re-trackeamos con DVC."
 
-run_cmd cp ../../datasets/adult/adult.csv data/raw/adult.csv
-run_cmd dvc add data/raw/adult.csv
-git add data/raw/adult.csv.dvc 2>/dev/null
+run_cmd cp ../../datasets/heart_failure/heart_failure.csv data/raw/heart_failure.csv
+run_cmd dvc add data/raw/heart_failure.csv
+git add data/raw/heart_failure.csv.dvc 2>/dev/null
 git commit -q -m "restaura dataset original" 2>/dev/null || true
 
 echo ""

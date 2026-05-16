@@ -121,13 +121,13 @@ explica "El script promote_if_better.py compara el f1 del candidato con"
 explica "el del Production y solo asciende si mejora al menos --min-improvement."
 
 echo ""
-echo "    Estado actual de income-clf:"
+echo "    Estado actual de heart-failure-clf:"
 python3 <<'PYTHON'
 import os, mlflow
 from mlflow.tracking import MlflowClient
 mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
 client = MlflowClient()
-for v in client.search_model_versions("name='income-clf'"):
+for v in client.search_model_versions("name='heart-failure-clf'"):
     run = client.get_run(v.run_id)
     f1 = run.data.metrics.get('f1', float('nan'))
     print(f"      v{v.version}  stage={v.current_stage:<12}  f1={f1:.4f}")
@@ -137,7 +137,7 @@ echo ""
 explica "Como aún no hay Production, el script promociona el candidato a Staging."
 echo ""
 run_cmd python src/promote_if_better.py \
-  --name income-clf \
+  --name heart-failure-clf \
   --metric f1 \
   --min-improvement 0.01
 pausa
@@ -181,7 +181,7 @@ echo ""
 echo "  ${C_BOLD}Cosas que mirar:${C_RESET}"
 echo "    - reports/drift.html   (abre en navegador)"
 echo "    - reports/drift.json   (PSI numéricos por feature)"
-echo "    - http://localhost:5050 → Models → income-clf con stages"
+echo "    - http://localhost:5050 → Models → heart-failure-clf con stages"
 echo ""
 echo "  Cuando estés listo, ve al Lab 5:"
 echo "    ${C_BOLD}cd ../lab5_e2e && ./run.sh${C_RESET}"

@@ -1,11 +1,11 @@
-# Model Card — `income-clf`
+# Model Card — `heart-failure-clf`
 
 > Adapta este template al modelo que hayas puesto en producción. Inspirado en
 > Mitchell et al. (2019) *"Model Cards for Model Reporting"*.
 
 ## 1. Detalles del modelo
 
-- **Nombre y versión:** income-clf v1
+- **Nombre y versión:** heart-failure-clf v1
 - **Tipo:** Clasificador binario (income > 50K)
 - **Algoritmo:** Random Forest / XGBoost
 - **Owner:** José Picón <jose.bobal@gmail.com>

@@ -194,9 +194,11 @@ serio debería medir:
 | Consistencia | ¿Cuadran los datos entre fuentes? |
 | Freshness (frescura) | ¿El dato es de cuándo dice ser? |
 
-En el lab vamos a comprobar **completitud** (no nulos en `income`),
-**validez** (rango de `age`, dominio de `workclass`) y **schema**
-(columnas presentes).
+En el lab vamos a comprobar **completitud** (no hay nulos en ninguna
+columna), **validez** (rangos clínicos plausibles para `age`,
+`ejection_fraction`, `serum_creatinine`, etc.), **dominio** (las
+columnas binarias como `anaemia`, `diabetes`, `sex` solo pueden ser 0
+o 1) y **schema** (las 13 columnas del dataset están presentes).
 
 \newpage
 
@@ -230,7 +232,7 @@ Si todo está, sigue al ejercicio.
 
 > **Objetivo del ejercicio:** practicar el ciclo entero de DVC
 > partiendo de un repositorio vacío. Al terminar tendrás un pipeline
-> declarativo que valida y preprocesa el dataset UCI Adult, con el
+> declarativo que valida y preprocesa el dataset Heart Failure (UCI 2020), con el
 > dato versionado por DVC y los artefactos generados en parquet.
 
 ## 6.1 Cómo hacer este ejercicio
@@ -370,7 +372,7 @@ decirle a DVC que lo trackee.
 
 ```bash
 mkdir -p data/raw
-cp ../../datasets/adult/adult.csv data/raw/adult.csv
+cp ../../datasets/heart_failure/heart_failure.csv data/raw/heart_failure.csv
 ```
 
 `mkdir -p` crea la carpeta y todas las intermedias si hace falta. El
@@ -382,12 +384,12 @@ Verifica:
 ls -lh data/raw/
 ```
 
-Debe aparecer `adult.csv` con un tamaño de unos 3,8 MB.
+Debe aparecer `heart_failure.csv` con un tamaño de unos 3,8 MB.
 
 Ahora viene el comando clave de DVC:
 
 ```bash
-dvc add data/raw/adult.csv
+dvc add data/raw/heart_failure.csv
 ```
 
 ¿Qué hace este comando? Tres cosas:
@@ -395,14 +397,14 @@ dvc add data/raw/adult.csv
 1. Calcula el hash MD5 del fichero.
 2. Mueve el fichero a la **caché interna de DVC** (en `.dvc/cache/`),
    nombrándolo por su hash.
-3. Crea en su lugar un **puntero**: el fichero `adult.csv.dvc` que
+3. Crea en su lugar un **puntero**: el fichero `heart_failure.csv.dvc` que
    contiene los metadatos del original.
 
 Mira los ficheros que ha creado:
 
 ```bash
 ls -la data/raw/
-cat data/raw/adult.csv.dvc
+cat data/raw/heart_failure.csv.dvc
 cat data/raw/.gitignore
 ```
 
@@ -413,7 +415,7 @@ automáticamente.
 Commitea el puntero:
 
 ```bash
-git add data/raw/adult.csv.dvc data/raw/.gitignore
+git add data/raw/heart_failure.csv.dvc data/raw/.gitignore
 git commit -m "trackea dataset"
 ```
 
@@ -437,29 +439,36 @@ mirar su estructura:
 cat src/ge_validate.py
 ```
 
-El fichero define cuatro funciones de validación:
+El fichero define cinco funciones de validación:
 
 ```python
 def expect_columns(df):
-    # Comprueba que están todas las columnas esperadas
+    # Las 13 columnas esperadas están presentes
     missing = set(EXPECTED_COLUMNS) - set(df.columns)
     assert not missing, f"faltan columnas: {missing}"
 
-def expect_age_range(df, lo=17, hi=90):
-    # Comprueba que age está dentro del rango [17, 90]
-    bad = df[(df["age"] < lo) | (df["age"] > hi)]
-    assert bad.empty, f"{len(bad)} filas con age fuera de [{lo}, {hi}]"
+def expect_no_nulls(df):
+    # Ninguna columna tiene valores nulos
+    nulls = df.isna().sum()
+    bad = nulls[nulls > 0]
+    assert bad.empty, f"hay nulos: {bad.to_dict()}"
 
-def expect_workclass_in_domain(df):
-    # Comprueba que workclass solo tiene valores conocidos
-    vals = set(df["workclass"].dropna().unique())
-    extras = vals - WORKCLASS_DOMAIN
-    assert not extras, f"valores inesperados: {extras}"
+def expect_numeric_ranges(df):
+    # Cada columna numérica está en su rango clínico plausible
+    for col, (lo, hi) in NUMERIC_RANGES.items():
+        bad = df[(df[col] < lo) | (df[col] > hi)]
+        assert bad.empty, f"{len(bad)} filas con {col} fuera de [{lo}, {hi}]"
 
-def expect_income_not_null(df):
-    # Comprueba que income no tiene nulos
-    nulls = df["income"].isna().sum()
-    assert nulls == 0, f"income tiene {nulls} nulos"
+def expect_binary_domain(df):
+    # Las columnas binarias solo tienen 0 o 1
+    for col in BINARY_COLUMNS:
+        extras = set(df[col].unique()) - {0, 1}
+        assert not extras, f"{col} con valores fuera de 0/1: {extras}"
+
+def expect_target_balance(df):
+    # El target no está demasiado desbalanceado
+    positives = df["DEATH_EVENT"].mean()
+    assert 0.05 < positives < 0.95, "target desbalanceado"
 ```
 
 Cada función es una **expectation**: si todo está bien, no hace nada;
@@ -468,16 +477,17 @@ si algo falla, lanza una excepción que detiene el pipeline.
 Ejecuta el validador a mano para ver qué pasa con el dataset bueno:
 
 ```bash
-python src/ge_validate.py data/raw/adult.csv
+python src/ge_validate.py data/raw/heart_failure.csv
 ```
 
 Salida esperada:
 
 ```
-[OK] schema (las 15 columnas esperadas están presentes)
-[OK] age dentro de [17, 90]
-[OK] workclass dentro del dominio conocido
-[OK] income sin nulos
+[OK] schema (las 13 columnas esperadas están presentes)
+[OK] sin valores nulos en ninguna columna
+[OK] rangos clínicos plausibles en 7 columnas
+[OK] dominio binario correcto en 6 columnas
+[OK] target balanceado razonablemente (positives=32.1%)
 
 TODAS LAS EXPECTATIVAS PASADAS
 ```
@@ -491,14 +501,14 @@ VS Code, lo que prefieras) y crea `dvc.yaml` con este contenido:
 ```yaml
 stages:
   validate:
-    cmd: python src/ge_validate.py data/raw/adult.csv
+    cmd: python src/ge_validate.py data/raw/heart_failure.csv
     deps:
-      - data/raw/adult.csv
+      - data/raw/heart_failure.csv
       - src/ge_validate.py
   preprocess:
     cmd: python src/preprocess.py
     deps:
-      - data/raw/adult.csv
+      - data/raw/heart_failure.csv
       - src/preprocess.py
       - params.yaml
     outs:
@@ -543,7 +553,7 @@ dvc repro
 Esta vez verás algo así:
 
 ```
-'data/raw/adult.csv.dvc' didn't change, skipping
+'data/raw/heart_failure.csv.dvc' didn't change, skipping
 Stage 'validate' didn't change, skipping
 Stage 'preprocess' didn't change, skipping
 Data and pipelines are up to date.
@@ -584,11 +594,11 @@ Edita la línea 5 del CSV. La forma rápida desde la terminal:
 
 ```bash
 python3 -c "
-with open('data/raw/adult.csv') as f: lines = f.readlines()
+with open('data/raw/heart_failure.csv') as f: lines = f.readlines()
 parts = lines[4].split(',')
 parts[0] = '200'
 lines[4] = ','.join(parts)
-with open('data/raw/adult.csv','w') as f: f.writelines(lines)
+with open('data/raw/heart_failure.csv','w') as f: f.writelines(lines)
 print('Linea 5 modificada: age=200')
 "
 ```
@@ -596,20 +606,22 @@ print('Linea 5 modificada: age=200')
 Ahora ejecuta solo el validador. Queremos ver el fallo:
 
 ```bash
-python src/ge_validate.py data/raw/adult.csv
+python src/ge_validate.py data/raw/heart_failure.csv
 ```
 
 Debe fallar con:
 
 ```
-[OK] schema (las 15 columnas esperadas están presentes)
-[FALLO] 1 filas con age fuera de [17, 90]
+[OK] schema (las 13 columnas esperadas están presentes)
+[OK] sin valores nulos en ninguna columna
+[FALLO] 1 filas con age fuera de [18, 110]; ejemplos: [200.0]
 ```
 
-Imagina que el dato malo viniera de un cliente real: si el validador
-no estuviera ahí, el pipeline lo procesaría, entrenaría un modelo
-con esa basura, y el modelo iría a producción. El validador es el
-primer cinturón de seguridad.
+Imagina que el dato malo viniera de un paciente real: si el validador
+no estuviera ahí, el pipeline lo procesaría, entrenaría un modelo de
+riesgo cardiovascular con esa basura, y el modelo iría a producción.
+**En un sistema de salud el coste de eso es enorme.** El validador es
+el primer cinturón de seguridad.
 
 ## 6.10 Paso 9 — Recuperar el dato bueno
 
@@ -617,9 +629,9 @@ Para recuperar el dato original, lo copiamos otra vez de la fuente y
 volvemos a trackearlo:
 
 ```bash
-cp ../../datasets/adult/adult.csv data/raw/adult.csv
-dvc add data/raw/adult.csv
-git add data/raw/adult.csv.dvc
+cp ../../datasets/heart_failure/heart_failure.csv data/raw/heart_failure.csv
+dvc add data/raw/heart_failure.csv
+git add data/raw/heart_failure.csv.dvc
 git commit -m "restaura dataset original"
 dvc repro
 ```
@@ -639,7 +651,7 @@ cd nuevo_companero
 ls data/raw/
 ```
 
-Verás `adult.csv.dvc` y `.gitignore`, pero **no** el CSV grande. Solo
+Verás `heart_failure.csv.dvc` y `.gitignore`, pero **no** el CSV grande. Solo
 el puntero. Ahora recupera los datos:
 
 ```bash
@@ -647,7 +659,7 @@ dvc pull
 ls -lh data/raw/
 ```
 
-Ahora sí está el `adult.csv` real, descargado desde MinIO. Reproduce
+Ahora sí está el `heart_failure.csv` real, descargado desde MinIO. Reproduce
 el pipeline:
 
 ```bash
@@ -695,23 +707,23 @@ muy parecido a una hoja de Excel pero programable.
 Las operaciones de pandas que hemos usado en el lab:
 
 ```python
-# Leer un CSV con cabecera proporcionada (porque el original no la tiene):
-df = pd.read_csv(path, header=None, names=EXPECTED_COLUMNS, na_values=["?"])
+# Leer un CSV con cabecera (el original ya la incluye):
+df = pd.read_csv(path)
 
-# Filtrar filas:
-bad = df[(df["age"] < 17) | (df["age"] > 90)]
+# Filtrar filas que se salen de un rango clínico:
+bad = df[(df["age"] < 18) | (df["age"] > 110)]
 
-# Obtener valores únicos de una columna:
-df["workclass"].dropna().unique()
+# Contar nulos por columna:
+df.isna().sum()
 
-# Contar nulos:
-df["income"].isna().sum()
+# Estadísticas resumen:
+df.describe()
 
-# Eliminar filas con nulos en ciertas columnas:
-df.dropna(subset=["workclass", "occupation"])
+# Balance de la clase objetivo:
+df["DEATH_EVENT"].value_counts(normalize=True)
 
-# Convertir variables categóricas a one-hot:
-df = pd.get_dummies(df, columns=cat_cols, drop_first=True)
+# Eliminar una columna (por ejemplo, una que sea data leakage):
+df = df.drop(columns=["time"])
 ```
 
 Si no tienes pandas instalado en tu sistema (en el lab lo instala el

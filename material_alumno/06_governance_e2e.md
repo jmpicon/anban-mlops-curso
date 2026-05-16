@@ -248,10 +248,10 @@ Debes ver `train.parquet` y `test.parquet`.
 **Lab 2 — Modelo en Registry:**
 
 ```bash
-curl -s 'http://localhost:5050/api/2.0/mlflow/registered-models/get?name=income-clf' | head -20
+curl -s 'http://localhost:5050/api/2.0/mlflow/registered-models/get?name=heart-failure-clf' | head -20
 ```
 
-Debes ver el modelo `income-clf` con al menos una versión en stage
+Debes ver el modelo `heart-failure-clf` con al menos una versión en stage
 `Staging` o `Production`.
 
 **Lab 3 — API (opcional, si quieres tenerla viva):**
@@ -318,24 +318,29 @@ os.environ["AWS_ACCESS_KEY_ID"] = "minio"
 os.environ["AWS_SECRET_ACCESS_KEY"] = "minio12345"
 
 # Cargar el modelo desde el Registry
-model = mlflow.pyfunc.load_model("models:/income-clf/Staging")
+model = mlflow.pyfunc.load_model("models:/heart-failure-clf/Staging")
 
 # Cargar el test set
 test = pd.read_parquet("../lab1_dataops/data/processed/test.parquet")
-y_true = test["income"]
-X = test.drop(columns=["income"])
+y_true = test["DEATH_EVENT"]
+X = test.drop(columns=["DEATH_EVENT"])
 
-# Hacer predicciones globales
+# Predicciones globales
 y_pred = (model.predict(X) >= 0.5).astype(int)
 print(f"F1 global: {f1_score(y_true, y_pred):.4f}")
 
-# F1 por sexo
-for sex_col, label in [("sex_Male", "Male"), ("sex_Female_or_other", "Female/Other")]:
-    if sex_col in X.columns:
-        mask = X[sex_col].astype(bool)
-        if mask.sum() > 0:
-            f1 = f1_score(y_true[mask], y_pred[mask])
-            print(f"F1 sex={label} (n={mask.sum()}): {f1:.4f}")
+# F1 por sexo (en este dataset, 0=mujer, 1=hombre)
+for sex_value, label in [(1, "Hombre"), (0, "Mujer")]:
+    mask = (X["sex"] == sex_value)
+    if mask.sum() > 0:
+        f1 = f1_score(y_true[mask], y_pred[mask])
+        print(f"F1 sex={label} (n={mask.sum()}): {f1:.4f}")
+
+# F1 por edad (mayores/menores de 65)
+for label, mask in [("≥65 años", X["age"] >= 65), ("<65 años", X["age"] < 65)]:
+    if mask.sum() > 0:
+        f1 = f1_score(y_true[mask], y_pred[mask])
+        print(f"F1 {label} (n={mask.sum()}): {f1:.4f}")
 ```
 
 Ejecútalo:
@@ -344,17 +349,20 @@ Ejecútalo:
 python subgroup_metrics.py
 ```
 
-Observa la diferencia. En el dataset Adult, típicamente:
+Observa la diferencia. En este dataset, típicamente:
 
 ```
-F1 global: 0.6877
-F1 sex=Male (n=6038): 0.7048
-F1 sex=Female/Other (n=3011): 0.5562
+F1 global: 0.5455
+F1 sex=Hombre (n=39): 0.5217
+F1 sex=Mujer  (n=21): 0.5714
+F1 ≥65 años (n=33): 0.6087
+F1 <65 años (n=27): 0.4286
 ```
 
-Esa diferencia es **enorme**. Significa que el modelo predice mucho
-peor para mujeres. Es un sesgo conocido del dataset (datos del censo
-US de 1994 con mujeres infrarrepresentadas en altos ingresos).
+Aquí vemos algo interesante: el modelo predice peor para los pacientes
+**jóvenes**. Es esperable porque los eventos de muerte por
+insuficiencia cardíaca son menos frecuentes en menores de 65, así que
+el modelo tiene menos casos positivos en los que aprender.
 
 **Pregúntate:** si tu modelo real tuviera esta disparidad, ¿lo
 desplegarías? ¿Qué harías para mitigarla? Anótalo en la Model Card,
@@ -387,7 +395,7 @@ Asegúrate de marcar lo que has completado:
 **Tracking y Registry**
 
 - [ ] Experimento con 3 runs en MLflow.
-- [ ] Modelo `income-clf` registrado.
+- [ ] Modelo `heart-failure-clf` registrado.
 - [ ] Versión 1 en stage Staging.
 
 **Serving**
