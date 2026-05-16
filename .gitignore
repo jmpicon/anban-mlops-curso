@@ -1,0 +1,33 @@
+# Material del docente: NO se sube al repositorio público
+guion_profesor/
+
+# Paquete generado para repartir
+Anbam-curso.zip
+
+# Entornos virtuales y cachés de Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Artefactos generados por los labs
+labs/*/data/
+labs/*/.dvc/
+labs/*/.dvcignore
+labs/*/dvc.lock
+labs/*/dvc.yaml
+labs/**/*.dvc
+labs/*/reports/
+labs/*/MODEL_CARD.md
+
+# Logs y temporales
+*.log
+*.tmp
+*.swp

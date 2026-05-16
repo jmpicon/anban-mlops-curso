@@ -1,0 +1,97 @@
+name: ml-pipeline
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "labs/**"
+      - "src/**"
+      - ".github/workflows/ml.yml"
+  schedule:
+    - cron: "0 4 * * 1"   # cada lunes 04:00 UTC
+  workflow_dispatch:
+
+env:
+  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI || 'sqlite:///mlruns.db' }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: ruff check .
+      - run: pytest -v --cov=src --cov-report=term
+
+  train:
+    needs: lint-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: pull data
+        run: dvc pull -v || echo "dvc remote no configurado en CI · usando snapshot"
+      - name: train
+        run: python labs/lab2_mlflow_dvc/src/train.py --model rf
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlruns
+          path: mlruns/
+          retention-days: 7
+
+  evaluate-and-promote:
+    needs: train
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'   # solo main / schedule / dispatch
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: mlruns
+          path: mlruns/
+      - name: register best
+        run: |
+          python labs/lab2_mlflow_dvc/src/register_best.py \
+              --experiment income-classifier \
+              --metric f1 \
+              --name income-clf
+      - name: promote if better
+        run: |
+          python labs/lab4_cicd_monitoring/src/promote_if_better.py \
+              --name income-clf \
+              --metric f1 \
+              --min-improvement 0.01
+
+  drift-report:
+    needs: train
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python labs/lab4_cicd_monitoring/synthetic/make_drift.py
+      - run: |
+          python labs/lab4_cicd_monitoring/src/drift_report.py \
+              --reference labs/lab1_dataops/data/processed/test.parquet \
+              --current  labs/lab4_cicd_monitoring/data/processed/drifted.parquet \
+              --output  drift.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: drift-report
+          path: drift.html
